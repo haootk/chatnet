@@ -1,20 +1,61 @@
-var express = require('express');
-var app = express();
+var http = require("http");
+var url = require('url');
+var fs = require('fs');
+var io = require('socket.io');
+var text = "";
 
-app.set('port', (process.env.PORT || 5000));
-
-app.use(express.static(__dirname + '/public'));
-
-// views is directory for all template files
-app.set('views', __dirname + '/views');
-app.set('view engine', 'ejs');
-
-app.get('/', function(request, response) {
-  response.render('pages/index');
+var server = http.createServer(function(request, response){
+    var path = url.parse(request.url).pathname;
+    switch(path){
+        case '/':
+            response.writeHead(300, {'Content-Type': 'text/html'});
+            response.write('hello world');
+            response.end();
+            break;
+        case '/socket.html':
+            fs.readFile(__dirname + path, function(error, data){
+                if (error){
+                    response.writeHead(404);
+                    response.write("opps this doesn't exist - 404");
+                    response.end();
+                }
+                else{
+                    response.writeHead(200, {"Content-Type": "text/html"});
+                    response.write(data, "utf8");
+                    response.end();
+                }
+            });
+            break;
+        default:
+            response.writeHead(404);
+            response.write("opps this doesn't exist - 404");
+            response.end();
+            break;
+    }
 });
 
-app.listen(app.get('port'), function() {
-  console.log('Node app is running on port', app.get('port'));
+server.listen(80);
+
+var listener = io.listen(server);
+
+listener.sockets.on('connection', function(socket){
+  console.log("연결되었습니다.");
+  //send data to client
+  setInterval(function(){
+    socket.emit('date', new Date());
+  }, 1000);
+
+  //recieve client data
+  socket.on('client_data', function(data){
+      console.log(typeof(data));
+      console.log(data.letter);
+      text+=data.letter;
+      //process.stdout.write(data.letter);
+  });
+  setInterval(function(){
+      console.log(typeof(text));
+      console.log(text);
+      socket.emit('chat', text);
+   }, 1000);
+
 });
-
-
